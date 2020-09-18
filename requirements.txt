@@ -6,3 +6,7 @@ flake8
 black
 dgl
 hydra-core
+deco
+h5py
+fire
+transformers
