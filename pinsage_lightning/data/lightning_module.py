@@ -1,10 +1,6 @@
 import os
 import pickle
 from dataclasses import dataclass
-from pinsage_lightning.data.labeled_pair_dataset import (
-    LabeledPairDataset,
-    LabeledPairWithEmbeddingsDataset,
-)
 
 import dgl
 import pytorch_lightning as pl
@@ -12,10 +8,8 @@ import torch
 from torch.utils.data import DataLoader
 
 from pinsage_lightning.config import DatasetConfig
-from pinsage_lightning.data.sampler import (
-    NeighborSampler,
-    PinSAGECollator,
-)
+from pinsage_lightning.data.labeled_pair_dataset import LabeledPairDataset
+from pinsage_lightning.data.sampler import NeighborSampler, PinSAGECollator
 from pinsage_lightning.utils import get_project_dir
 
 
@@ -74,7 +68,6 @@ class PinSAGEDataModule(pl.LightningDataModule):
         dataset = LabeledPairDataset(
             self.g, self.pairs_file, cfg.batch_size, cfg.num_hard_negatvies
         )
-        dataset = LabeledPairWithEmbeddingsDataset(dataset, self.embedding_file)
 
         neighbor_sampler = NeighborSampler(
             self.g,
@@ -87,7 +80,11 @@ class PinSAGEDataModule(pl.LightningDataModule):
             cfg.n_layers,
         )
         collator = PinSAGECollator(
-            neighbor_sampler, self.g, self.item_ntype, self.textset
+            neighbor_sampler,
+            self.g,
+            self.item_ntype,
+            self.textset,
+            embedding_file=self.embedding_file,
         )
         dataloader = DataLoader(
             dataset,

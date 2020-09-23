@@ -1,17 +1,19 @@
-import pytorch_lightning as pl
 from dataclasses import dataclass
 
-from .layers import LinearProjector, SAGENet, ItemToItemScorer
-from torch.optim import Adam
-import torchtext
 import dgl
+import pytorch_lightning as pl
+import torch
+from torch.optim import Adam
+
+from .layers import ItemToItemScorer, LinearProjector, SAGENet
 
 
 @dataclass
 class PinSAGELightningModuleConfig:
     full_graph: dgl.DGLGraph
     ntype: str
-    textsets: torchtext.data.Dataset
+    input_size: int
+    hidden_dims: int
     hidden_dims: int = 16
     n_layers: int = 2
     lr: float = 3e-5
@@ -22,9 +24,7 @@ class PinSAGELightningModule(pl.LightningModule):
         super().__init__()
         self.cfg = cfg
 
-        self.proj = LinearProjector(
-            cfg.full_graph, cfg.ntype, cfg.textsets, cfg.hidden_dims
-        )
+        self.proj = torch.nn.Linear(cfg.input_size, cfg.hidden_size)
         self.sage = SAGENet(cfg.hidden_dims, cfg.n_layers)
         self.scorer = ItemToItemScorer(cfg.full_graph, cfg.ntype)
 
@@ -35,8 +35,8 @@ class PinSAGELightningModule(pl.LightningModule):
         return (neg_score - pos_score + 1).clamp(min=0)
 
     def get_repr(self, blocks):
-        h_item = self.proj(blocks[0].srcdata)
-        h_item_dst = self.proj(blocks[-1].dstdata)
+        h_item = self.proj(blocks[0].srcdata["feature"])
+        h_item_dst = self.proj(blocks[-1].dstdata["feature"])
         return h_item_dst + self.sage(blocks, h_item)
 
     def training_step(self, batch, batch_idx):

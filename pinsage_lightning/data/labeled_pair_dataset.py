@@ -70,23 +70,3 @@ class LabeledPairDataset(IterableDataset):
                 negative_ids.add(pos1)
                 negative_ids.add(pos2)
         return random.shuffle(list(negative_ids))[: self.num_negative_samples]
-
-
-class LabeledPairWithEmbeddingsDataset(IterableDataset):
-    def __init__(self, dataset, embedding_file):
-        self.dataset = dataset
-        self.embedding_file = embedding_file
-
-        self.h5 = None
-
-    def __iter__(self):
-        if not self.h5:
-            self.h5 = h5py.File(self.embedding_file, "r")
-
-        for batch in self.dataset:
-            queries, items, neg = batch
-
-            queries = self.h5["feature"][queries]
-            items = self.h5["feature"][items]
-            neg = self.h5["feature"][neg]
-            yield queries, items, neg

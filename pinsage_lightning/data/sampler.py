@@ -1,4 +1,5 @@
 import dgl
+import h5py
 import torch
 
 
@@ -97,11 +98,19 @@ def assign_features_to_blocks(blocks, g, ntype):
     assign_simple_node_features(blocks[-1].dstdata, g, ntype)
 
 
+def assign_embeddings_from_file_to_blocks(blocks, h5):
+    blocks[0].srcdata["feature"] = torch.tensor(h5["feature"][blocks[0].srcdata["id"]])
+    blocks[1].dstdata["feature"] = torch.tensor(h5["feature"][blocks[1].dstdata["id"]])
+
+
 class PinSAGECollator(object):
-    def __init__(self, sampler, g, ntype):
+    def __init__(self, sampler, g, ntype, embedding_file=None):
         self.sampler = sampler
         self.ntype = ntype
         self.g = g
+
+        self.embedding_file = embedding_file
+        self.embeddings = None
 
     def collate_train(self, batches):
         heads, tails, neg_tails = batches[0]
@@ -111,10 +120,23 @@ class PinSAGECollator(object):
         )
         assign_features_to_blocks(blocks, self.g, self.ntype)
 
+        if self.embedding_file:
+            if not self.embeddings:
+                self.embeddings = h5py.File(self.embedding_file)
+
+            assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
+
         return pos_graph, neg_graph, blocks
 
     def collate_test(self, samples):
         batch = torch.LongTensor(samples)
         blocks = self.sampler.sample_blocks(batch)
         assign_features_to_blocks(blocks, self.g, self.ntype)
+
+        if self.embedding_file:
+            if not self.embeddings:
+                self.embeddings = h5py.File(self.embedding_file)
+
+            assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
+
         return blocks
