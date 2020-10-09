@@ -9,12 +9,13 @@ from typing import Any
 class DatasetConfig:
     dataset_path: str = MISSING
     random_walk_length: int = 2
-    random_walk_restart_prob: float = 0.5
-    num_random_walks: int = 10
+    random_walk_restart_prob: float = 0.1
+    num_random_walks: int = 5
     n_layers: int = 2
     batch_size: int = 32
     num_workers: int = 0
     num_neighbors: int = 3
+    num_hard_negatives: int = 0
 
 
 @dataclass

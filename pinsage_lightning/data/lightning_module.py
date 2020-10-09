@@ -3,43 +3,65 @@ import pickle
 from dataclasses import dataclass
 
 import dgl
+import hydra
+import numpy as np
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader
-
 from pinsage_lightning.config import DatasetConfig
 from pinsage_lightning.data.labeled_pair_dataset import LabeledPairDataset
 from pinsage_lightning.data.sampler import NeighborSampler, PinSAGECollator
-from pinsage_lightning.utils import get_project_dir
+from torch.utils.data import DataLoader
 
 
 @dataclass
 class PinSAGEDataset:
     g: dgl.DGLGraph
+    train_indices: np.ndarray
     user_ntype: str
     item_ntype: str
-    pairs_file: str
-    embedding_file: str
+    etype: str
+    etype_rev: str
+    items_file: str = None
+    embedding_size: int = None
+    embedding_file: str = None
+    pairs_file: str = None
+    val_mask: np.ndarray = None
+    test_mask: np.ndarray = None
 
     def save(self, save_path):
         os.makedirs(save_path, exist_ok=True)
 
-        embedding_filename = os.path.basename(self.embedding_file)
-        os.rename(self.embedding_file, os.path.join(save_path, embedding_filename))
-        self.embedding_file = embedding_filename
+        items_filename = os.path.basename(self.items_file)
+        os.rename(self.items_file, os.path.join(save_path, items_filename))
+        self.items_file = items_filename
+
+        if self.embedding_file:
+            embedding_filename = os.path.basename(self.embedding_file)
+            os.rename(self.embedding_file, os.path.join(save_path, embedding_filename))
+            self.embedding_file = embedding_filename
 
         pairs_filename = os.path.basename(self.pairs_file)
-        os.renmae(self.pairs_file, os.path.join(save_path, pairs_filename))
+        os.rename(self.pairs_file, os.path.join(save_path, pairs_filename))
         self.pairs_file = pairs_filename
 
         pkl_path = os.path.join(save_path, "data.pkl")
         with open(pkl_path, "wb") as f:
             pickle.dump(self, f)
 
+        print(self.train_indices)
+        print(self.g)
+
     @classmethod
     def load(cls, path):
-        with open(path, "rb") as f:
+        with open(os.path.join(path, "data.pkl"), "rb") as f:
             dataset = pickle.load(f)
+
+        dataset.items_file = os.path.join(path, dataset.items_file)
+
+        if dataset.embedding_file:
+            dataset.embedding_file = os.path.join(path, dataset.embedding_file)
+        dataset.pairs_file = os.path.join(path, dataset.pairs_file)
+
         return dataset
 
 
@@ -47,14 +69,23 @@ class PinSAGEDataModule(pl.LightningDataModule):
     def __init__(self, cfg: DatasetConfig):
         super().__init__()
         self.dataset = PinSAGEDataset.load(
-            os.path.join(get_project_dir(), cfg.dataset_path)
+            hydra.utils.to_absolute_path(cfg.dataset_path)
         )
         self.cfg = cfg
 
         self.g = self.dataset.g
         self.user_ntype = self.dataset.user_ntype
         self.item_ntype = self.dataset.item_ntype
+        self.embedding_size = self.dataset.embedding_size
         self.embedding_file = self.dataset.embedding_file
+        self.pairs_file = self.dataset.pairs_file
+
+        train_indices = self.dataset.train_indices
+
+        self.train_g = self.g.edge_subgraph(
+            {self.dataset.etype: train_indices, self.dataset.etype_rev: train_indices},
+            preserve_nodes=True,
+        )
 
     def prepare_data(self):
         pass
@@ -66,11 +97,16 @@ class PinSAGEDataModule(pl.LightningDataModule):
         cfg = self.cfg
 
         dataset = LabeledPairDataset(
-            self.g, self.pairs_file, cfg.batch_size, cfg.num_hard_negatvies
+            self.train_g,
+            self.pairs_file,
+            cfg.batch_size,
+            cfg.num_hard_negatives,
+            self.dataset.etype,
+            self.dataset.etype_rev,
         )
 
         neighbor_sampler = NeighborSampler(
-            self.g,
+            self.train_g,
             self.user_ntype,
             self.item_ntype,
             cfg.random_walk_length,
@@ -81,9 +117,8 @@ class PinSAGEDataModule(pl.LightningDataModule):
         )
         collator = PinSAGECollator(
             neighbor_sampler,
-            self.g,
+            self.train_g,
             self.item_ntype,
-            self.textset,
             embedding_file=self.embedding_file,
         )
         dataloader = DataLoader(
@@ -109,7 +144,10 @@ class PinSAGEDataModule(pl.LightningDataModule):
         )
 
         collator = PinSAGECollator(
-            neighbor_sampler, self.g, self.item_ntype, self.textset
+            neighbor_sampler,
+            self.g,
+            self.item_ntype,
+            embedding_file=self.embedding_file,
         )
         dataloader_test = DataLoader(
             torch.arange(self.g.number_of_nodes(self.item_ntype)),

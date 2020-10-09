@@ -1,10 +1,9 @@
+import json
 import random
 
 import dgl
 import torch
 from torch.utils.data import IterableDataset
-
-import h5py
 
 
 class LabeledPairDataset(IterableDataset):
@@ -14,6 +13,8 @@ class LabeledPairDataset(IterableDataset):
         filename,
         batch_size,
         num_hard_negatives,
+        etype,
+        etype_rev,
         hard_negative_distance=1,
         num_negative_samples=1e5,
     ):
@@ -25,11 +26,12 @@ class LabeledPairDataset(IterableDataset):
         self.num_negative_samples = int(num_negative_samples)
         self.hard_negative = False
         self.hard_negative_metapath = [
-            self.item_to_user_etype,
-            self.user_to_item_etype,
+            etype_rev,
+            etype,
         ] * hard_negative_distance
 
         self.negative_ids = self.get_negative_samples()
+        print("!!", "initialized dataset")
 
     def __iter__(self):
         while True:
@@ -38,15 +40,18 @@ class LabeledPairDataset(IterableDataset):
                 items = []
 
                 for _ in range(self.batch_size):
-                    line = f.readline()
+                    line = json.loads(f.readline())
                     pos1, pos2 = line["node_id_1"], line["node_id_2"]
                     queries.append(pos1)
                     items.append(pos2)
 
-                queries = torch.tensor(queries, dtype=torch.int)
-                items = torch.tensor(items, dtype=torch.int)
+                print("!!", "got node ids")
 
-                neg = torch.tensor(random.shuffle(self.negative_ids)[: self.batch_size])
+                queries = torch.tensor(queries, dtype=torch.long)
+                items = torch.tensor(items, dtype=torch.long)
+
+                random.shuffle(self.negative_ids)
+                neg = torch.LongTensor(self.negative_ids[: self.batch_size])
 
                 if self.num_hard_negatives > 0:
                     hard_neg = dgl.sampling.random_walk(
@@ -56,17 +61,22 @@ class LabeledPairDataset(IterableDataset):
                     )[0][:, -1]
 
                     indices = torch.randint(
-                        0, self.batch_size + 1, (self.num_hard_negatives,)
+                        0, self.batch_size, (self.num_hard_negatives,)
                     )
-                    neg[indices] = hard_neg
+                    if torch.min(hard_neg[indices]) > -1:
+                        neg[indices] = hard_neg[indices]
 
+                print("!!", "got item")
                 yield queries, items, neg
 
     def get_negative_samples(self):
         negative_ids = set()
         with open(self.filename) as f:
             for line in f:
+                line = json.loads(line)
                 pos1, pos2 = line["node_id_1"], line["node_id_2"]
                 negative_ids.add(pos1)
                 negative_ids.add(pos2)
-        return random.shuffle(list(negative_ids))[: self.num_negative_samples]
+        negative_ids = list(negative_ids)
+        random.shuffle(negative_ids)
+        return negative_ids[: self.num_negative_samples]

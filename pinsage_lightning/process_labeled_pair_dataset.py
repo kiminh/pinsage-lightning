@@ -6,7 +6,7 @@ import pandas as pd
 import fire
 from pinsage_lightning.data.builder import PandasGraphBuilder
 from pinsage_lightning.data.h5_embedding_store import build_h5_embedding_store
-from pinsage_lightning.data.lightning_module import PinSAGEDataConfig
+from pinsage_lightning.data.lightning_module import PinSAGEDataset
 from pinsage_lightning.data.utils import (build_train_graph,
                                           build_val_test_matrix,
                                           linear_normalize,
@@ -46,7 +46,7 @@ def process_nowplaying_rs_dataset(data_dir, dst_dataset_path, model_name_or_path
         g, val_indices, test_indices, "user", "track", "listened"
     )
 
-    dataset = PinSAGEDataConfig(train_g, "user", "track", embedding_file, pairs_file)
+    dataset = PinSAGEDataset(train_g, "user", "track", "listened", "listened-by", embedding_file, pairs_file)
     dataset.save(dst_dataset_path)
 
 

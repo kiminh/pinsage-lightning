@@ -1,4 +1,4 @@
-dask
+dask[dataframe]
 pandas
 torchtext
 pytorch-lightning
@@ -7,6 +7,8 @@ black
 dgl
 hydra-core
 deco
-h5py
+h5py==2.10.0
 fire
 transformers
+cloudpickle
+torchvision

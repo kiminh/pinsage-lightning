@@ -16,4 +16,16 @@ data generalization TODOs
 - [x] understand pos/neg/blocks setup
     - https://docs.dgl.ai/guide/minibatch-nn.html#guide-minibatch-custom-gnn-module
     - https://docs.dgl.ai/guide/minibatch-node.html#guide-minibatch-node-classification-sampler
-- [ ] implement mask support
+- [ ] test end-to-end
+- [ ] improve negative sampling
+
+
+GBD TODOs
+- [ ] create large dataset
+- [ ] create callback for increasing hard negatives
+- [ ] train in plx
+- [ ] check that ID assignment is correct
+- [ ] check that training actually works
+- [ ] infer / embed whole graph
+- [x] check that hard negatives work
+- [x] load dataset in train script

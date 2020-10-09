@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import torch
 from torch.optim import Adam
 
-from .layers import ItemToItemScorer, LinearProjector, SAGENet
+from pinsage_lightning.model.layers import ItemToItemScorer, SAGENet
 
 
 @dataclass
@@ -13,7 +13,6 @@ class PinSAGELightningModuleConfig:
     full_graph: dgl.DGLGraph
     ntype: str
     input_size: int
-    hidden_dims: int
     hidden_dims: int = 16
     n_layers: int = 2
     lr: float = 3e-5
@@ -24,7 +23,7 @@ class PinSAGELightningModule(pl.LightningModule):
         super().__init__()
         self.cfg = cfg
 
-        self.proj = torch.nn.Linear(cfg.input_size, cfg.hidden_size)
+        self.proj = torch.nn.Linear(cfg.input_size, cfg.hidden_dims)
         self.sage = SAGENet(cfg.hidden_dims, cfg.n_layers)
         self.scorer = ItemToItemScorer(cfg.full_graph, cfg.ntype)
 
