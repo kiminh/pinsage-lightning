@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 
 @dataclass
 class PinSAGEDataset:
-    g: dgl.DGLGraph
+    g: dgl.DGLHeteroGraph
     train_indices: np.ndarray
     user_ntype: str
     item_ntype: str
@@ -64,6 +64,12 @@ class PinSAGEDataset:
 
         return dataset
 
+    def build_train_graph(self):
+        return self.g.edge_subgraph(
+            {self.etype: self.train_indices, self.etype_rev: self.train_indices},
+            preserve_nodes=True,
+        )
+
 
 class PinSAGEDataModule(pl.LightningDataModule):
     def __init__(self, cfg: DatasetConfig):
@@ -80,12 +86,7 @@ class PinSAGEDataModule(pl.LightningDataModule):
         self.embedding_file = self.dataset.embedding_file
         self.pairs_file = self.dataset.pairs_file
 
-        train_indices = self.dataset.train_indices
-
-        self.train_g = self.g.edge_subgraph(
-            {self.dataset.etype: train_indices, self.dataset.etype_rev: train_indices},
-            preserve_nodes=True,
-        )
+        self.train_g = self.dataset.build_train_graph()
 
     def prepare_data(self):
         pass

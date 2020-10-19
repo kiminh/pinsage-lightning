@@ -32,7 +32,6 @@ class Config:
     trainer: Any = MISSING
 
     num_epochs: int = 1
-    batches_per_epoch: int = 20000
     k: int = 10
 
 

@@ -31,21 +31,31 @@ class LabeledPairDataset(IterableDataset):
         ] * hard_negative_distance
 
         self.negative_ids = self.get_negative_samples()
-        print("!!", "initialized dataset")
 
     def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:
+            lines_to_skip = 0
+        else:
+            lines_to_skip = worker_info.num_workers - 1
+
         while True:
             with open(self.filename) as f:
+                if lines_to_skip > 0 and worker_info.id > 0:
+                    for _ in range(worker_info.id):
+                        f.readline()
+
                 queries = []
                 items = []
 
                 for _ in range(self.batch_size):
                     line = json.loads(f.readline())
+                    if lines_to_skip > 0:
+                        for _ in range(lines_to_skip):
+                            f.readline()
                     pos1, pos2 = line["node_id_1"], line["node_id_2"]
                     queries.append(pos1)
                     items.append(pos2)
-
-                print("!!", "got node ids")
 
                 queries = torch.tensor(queries, dtype=torch.long)
                 items = torch.tensor(items, dtype=torch.long)
@@ -66,7 +76,6 @@ class LabeledPairDataset(IterableDataset):
                     if torch.min(hard_neg[indices]) > -1:
                         neg[indices] = hard_neg[indices]
 
-                print("!!", "got item")
                 yield queries, items, neg
 
     def get_negative_samples(self):

@@ -3,7 +3,6 @@ import math
 import h5py
 import numpy as np
 import pandas as pd
-# from deco import concurrent, synchronized
 from tqdm import tqdm
 
 
@@ -47,7 +46,6 @@ def split_df(df: pd.DataFrame, chunk_size: int):
     return np.array_split(df, num_chunks), num_chunks
 
 
-# @synchronized
 def embed_df(df: pd.DataFrame, feature_fn):
     embeddings = {}
 
@@ -57,6 +55,5 @@ def embed_df(df: pd.DataFrame, feature_fn):
     return list(embeddings.values())
 
 
-# @concurrent(64)
 def _embed_df(row, feature_fn):
     return feature_fn(row)

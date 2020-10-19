@@ -1,5 +1,6 @@
 import dgl
 import h5py
+import numpy as np
 import torch
 
 
@@ -41,7 +42,6 @@ class NeighborSampler(object):
             )
             for _ in range(num_layers)
         ]
-        print("!!", "initialized sampler")
 
     def sample_blocks(self, seeds, heads=None, tails=None, neg_tails=None):
         blocks = []
@@ -68,7 +68,6 @@ class NeighborSampler(object):
     def sample_from_item_pairs(self, heads, tails, neg_tails):
         # Create a graph with positive connections only and another graph with negative
         # connections only.
-        print("!!", "constructing subgraphs")
         pos_graph = dgl.graph(
             (heads, tails), num_nodes=self.g.number_of_nodes(self.item_type)
         )
@@ -79,7 +78,6 @@ class NeighborSampler(object):
         seeds = pos_graph.ndata[dgl.NID]
 
         blocks = self.sample_blocks(seeds, heads, tails, neg_tails)
-        print("!!", "made subgraphs")
         return pos_graph, neg_graph, blocks
 
 
@@ -102,38 +100,43 @@ def assign_features_to_blocks(blocks, g, ntype):
 
 
 def assign_embeddings_from_file_to_blocks(blocks, h5):
+
     def get_embeddings(unsorted_ids):
+        if isinstance(h5, np.ndarray):
+            return torch.tensor(h5[unsorted_ids.numpy()])
+
         ids, indices = torch.sort(unsorted_ids)
         features = torch.tensor(h5["feature"][ids.numpy()])
         return torch.index_select(features, 0, indices)
 
-    # blocks[0].srcdata["feature"] = get_embeddings(blocks[0].srcdata["id"])
-    # blocks[1].dstdata["feature"] = get_embeddings(blocks[1].dstdata["id"])
-    blocks[0].srcdata["feature"] = get_embeddings(blocks[0].srcdata[dgl.NID])
-    blocks[1].dstdata["feature"] = get_embeddings(blocks[1].dstdata[dgl.NID])
+    blocks[0].srcdata["feature"] = get_embeddings(blocks[0].srcdata["id"])
+    blocks[-1].dstdata["feature"] = get_embeddings(blocks[-1].dstdata["id"])
 
 
 class PinSAGECollator(object):
-    def __init__(self, sampler, g, ntype, embedding_file=None):
+    def __init__(self, sampler, g, ntype, embedding_file=None, embedding_storage="cpu"):
         self.sampler = sampler
         self.ntype = ntype
         self.g = g
 
         self.embedding_file = embedding_file
         self.embeddings = None
+        self.embedding_storage = embedding_storage
+
+        if embedding_storage == "cpu":
+            with h5py.File(embedding_file, "r") as f:
+                self.embeddings = f["feature"][:]
 
     def collate_train(self, batches):
         heads, tails, neg_tails = batches[0]
         # Construct multilayer neighborhood via PinSAGE...
-        print("!!", "constructing neighborhoods")
         pos_graph, neg_graph, blocks = self.sampler.sample_from_item_pairs(
             heads, tails, neg_tails
         )
         assign_features_to_blocks(blocks, self.g, self.ntype)
 
-        print("!!", "assigning features")
         if self.embedding_file:
-            if not self.embeddings:
+            if self.embeddings is None and self.embedding_storage == "h5":
                 self.embeddings = h5py.File(self.embedding_file, "r")
 
             assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
@@ -146,7 +149,7 @@ class PinSAGECollator(object):
         assign_features_to_blocks(blocks, self.g, self.ntype)
 
         if self.embedding_file:
-            if not self.embeddings:
+            if self.embeddings is None and self.embedding_storage == "h5":
                 self.embeddings = h5py.File(self.embedding_file, "r")
 
             assign_embeddings_from_file_to_blocks(blocks, self.embeddings)

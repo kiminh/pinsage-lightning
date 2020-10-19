@@ -1,7 +1,7 @@
 dask[dataframe]
 pandas
 torchtext
-pytorch-lightning
+pytorch-lightning==0.10.0
 flake8
 black
 dgl
