@@ -1,15 +1,15 @@
+from argparse import Namespace
 from dataclasses import dataclass
 
 import dgl
 import pytorch_lightning as pl
 import torch
-from torch.optim import Adam
-
 from pinsage_lightning.model.layers import ItemToItemScorer, SAGENet
+from torch.optim import Adam
 
 
 @dataclass
-class PinSAGELightningModuleConfig:
+class PinSAGELightningModuleConfig(Namespace):
     full_graph: dgl.DGLGraph
     ntype: str
     input_size: int
@@ -21,6 +21,7 @@ class PinSAGELightningModuleConfig:
 class PinSAGELightningModule(pl.LightningModule):
     def __init__(self, cfg: PinSAGELightningModuleConfig):
         super().__init__()
+        self.save_hyperparameters()
         self.cfg = cfg
 
         self.proj = torch.nn.Linear(cfg.input_size, cfg.hidden_dims)
@@ -41,13 +42,13 @@ class PinSAGELightningModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         pos_graph, neg_graph, blocks = batch
         loss = self.forward(pos_graph, neg_graph, blocks).mean()
-        result = pl.TrainResult(loss)
-        result.log(
+        self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
-        return result
+        # TODO log subgraph size
+        return loss
 
-    def validation_step(self, *args, **kwargs) -> pl.EvalResult:
+    def validation_step(self, batch, batch_idx):
         pass
 
     def configure_optimizers(self):

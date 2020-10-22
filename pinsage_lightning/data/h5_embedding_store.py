@@ -40,6 +40,22 @@ def build_h5_embedding_store(
         return {item_id.decode(): i for i, item_id in enumerate(item_ids[:])}, feat_size
 
 
+def save_precomputed_embeddings_to_store(filename: str, embeddings, ids=None):
+    dataset_size = len(ids)
+
+    feat_size = len(embeddings[0])
+
+    with h5py.File(filename, "w") as f:
+        features = f.create_dataset("feature", (dataset_size, feat_size))
+        item_ids = f.create_dataset(
+            "item_id", (dataset_size,), dtype=h5py.string_dtype(encoding="ascii")
+        )
+        features[:] = embeddings
+
+        if ids is not None:
+            item_ids[:] = ids
+
+
 def split_df(df: pd.DataFrame, chunk_size: int):
     num_chunks = math.ceil(len(df) / chunk_size)
 

@@ -5,6 +5,7 @@ import torch
 
 
 def compact_and_copy(frontier, seeds):
+    """Turn graph into block and copy edge data."""
     block = dgl.to_block(frontier, seeds)
     for col, data in frontier.edata.items():
         if col == dgl.EID:
@@ -47,6 +48,8 @@ class NeighborSampler(object):
         blocks = []
         for sampler in self.samplers:
             frontier = sampler(seeds)
+
+            # if sampling for pairs, remove any direct edges between the pairs
             if heads is not None:
                 eids = frontier.edge_ids(
                     torch.cat([heads, heads]),
@@ -56,10 +59,7 @@ class NeighborSampler(object):
                 if len(eids) > 0:
                     old_frontier = frontier
                     frontier = dgl.remove_edges(old_frontier, eids)
-                    # print(old_frontier)
-                    # print(frontier)
-                    # print(frontier.edata['weights'])
-                    # frontier.edata['weights'] = old_frontier.edata['weights'][frontier.edata[dgl.EID]]
+
             block = compact_and_copy(frontier, seeds)
             seeds = block.srcdata[dgl.NID]
             blocks.insert(0, block)
@@ -109,8 +109,8 @@ def assign_embeddings_from_file_to_blocks(blocks, h5):
         features = torch.tensor(h5["feature"][ids.numpy()])
         return torch.index_select(features, 0, indices)
 
-    blocks[0].srcdata["feature"] = get_embeddings(blocks[0].srcdata["id"])
-    blocks[-1].dstdata["feature"] = get_embeddings(blocks[-1].dstdata["id"])
+    blocks[0].srcdata["feature"] = get_embeddings(blocks[0].srcdata[dgl.NID])
+    blocks[-1].dstdata["feature"] = get_embeddings(blocks[-1].dstdata[dgl.NID])
 
 
 class PinSAGECollator(object):
