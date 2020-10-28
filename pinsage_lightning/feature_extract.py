@@ -4,11 +4,17 @@ from pinsage_lightning.config import DatasetConfig
 from pinsage_lightning.data.h5_embedding_store import save_precomputed_embeddings_to_store
 from pinsage_lightning.data.lightning_module import PinSAGEDataModule
 from pinsage_lightning.model.lightning_module import PinSAGELightningModule
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__file__)
 
 
 def extract_features(ckpt_path, dataset_path, output_path=None, use_gpu=False):
+    logger.info(f"Loading model from {ckpt_path}")
     model = PinSAGELightningModule.load_from_checkpoint(ckpt_path)
 
+    logger.info(f"Loading dataset from {dataset_path}")
     cfg = DatasetConfig(dataset_path=dataset_path)
     dm = PinSAGEDataModule(cfg)
     dataloader = dm.val_dataloader()
@@ -25,9 +31,15 @@ def extract_features(ckpt_path, dataset_path, output_path=None, use_gpu=False):
         # item_ids.extend(ids.numpy())
         features.append(model.get_repr(blocks))
 
+        if len(blocks) % 10 == 0:
+            print(len(blocks))
+
     features = torch.cat(features, 0)
     if output_path:
+        logger.info("Saving features")
         save_precomputed_embeddings_to_store(output_path, features.numpy())
+
+    return features.numpy()
 
 
 if __name__ == "__main__":
