@@ -20,12 +20,11 @@ data generalization TODOs
 - [ ] improve negative sampling
 
 
-GBD TODOs
-- [ ] create large dataset
-- [ ] create callback for increasing hard negatives
-- [ ] train in plx
-- [ ] check that ID assignment is correct
-- [ ] check that training actually works
-- [ ] infer / embed whole graph
-- [x] check that hard negatives work
-- [x] load dataset in train script
+## Distributed Inference
+
+0. linear project everything, save to store
+for each layer:
+    for each item:
+        1. get node ID
+        2. sample one neighborhood block
+        3. get embeddings for block nodes
