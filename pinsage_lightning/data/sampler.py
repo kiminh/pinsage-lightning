@@ -1,7 +1,7 @@
 import dgl
-import h5py
 import numpy as np
 import torch
+from pinsage_lightning.data.h5_feature_store import H5FeatureStore
 
 
 def compact_and_copy(frontier, seeds):
@@ -114,18 +114,16 @@ def assign_embeddings_from_file_to_blocks(blocks, h5):
 
 
 class PinSAGECollator(object):
-    def __init__(self, sampler, g, ntype, embedding_file=None, embedding_storage="cpu"):
+    def __init__(self, sampler, g, ntype, embedding_file=None):
         self.sampler = sampler
         self.ntype = ntype
         self.g = g
 
         self.embedding_file = embedding_file
         self.embeddings = None
-        self.embedding_storage = embedding_storage
 
-        if embedding_storage == "cpu":
-            with h5py.File(embedding_file, "r") as f:
-                self.embeddings = f["feature"][:]
+        store = H5FeatureStore(embedding_file)
+        self.embeddings = store.get_features()
 
     def collate_train(self, batches):
         heads, tails, neg_tails = batches[0]
@@ -135,11 +133,7 @@ class PinSAGECollator(object):
         )
         assign_features_to_blocks(blocks, self.g, self.ntype)
 
-        if self.embedding_file:
-            if self.embeddings is None and self.embedding_storage == "h5":
-                self.embeddings = h5py.File(self.embedding_file, "r")
-
-            assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
+        assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
 
         return pos_graph, neg_graph, blocks
 
@@ -148,10 +142,6 @@ class PinSAGECollator(object):
         blocks = self.sampler.sample_blocks(batch)
         assign_features_to_blocks(blocks, self.g, self.ntype)
 
-        if self.embedding_file:
-            if self.embeddings is None and self.embedding_storage == "h5":
-                self.embeddings = h5py.File(self.embedding_file, "r")
-
-            assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
+        assign_embeddings_from_file_to_blocks(blocks, self.embeddings)
 
         return blocks

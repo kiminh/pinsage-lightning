@@ -1,7 +1,7 @@
 import fire
 import torch
 from pinsage_lightning.config import DatasetConfig
-from pinsage_lightning.data.h5_embedding_store import save_precomputed_embeddings_to_store
+from pinsage_lightning.data.h5_feature_store import H5FeatureStore
 from pinsage_lightning.data.lightning_module import PinSAGEDataModule
 from pinsage_lightning.model.lightning_module import PinSAGELightningModule
 import logging
@@ -37,7 +37,8 @@ def extract_features(ckpt_path, dataset_path, output_path=None, use_gpu=False):
     features = torch.cat(features, 0)
     if output_path:
         logger.info("Saving features")
-        save_precomputed_embeddings_to_store(output_path, features.numpy())
+        store = H5FeatureStore(output_path)
+        store.store(features.numpy())
 
     return features.numpy()
 
