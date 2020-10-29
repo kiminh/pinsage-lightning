@@ -1,6 +1,5 @@
 dask[dataframe]
 pandas
-torchtext
 pytorch-lightning>=1.0.0
 flake8
 black
@@ -12,3 +11,4 @@ fire
 transformers
 cloudpickle
 torchvision
+scikit-learn
