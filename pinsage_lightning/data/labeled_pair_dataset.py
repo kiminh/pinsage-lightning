@@ -74,10 +74,7 @@ class LabeledPairDataset(IterableDataset):
                         0, self.batch_size, (self.num_hard_negatives,)
                     )
                     if torch.min(hard_neg[indices]) > -1:
-                        print("added negative samples")
                         neg[indices] = hard_neg[indices]
-                    else:
-                        print("couldnt get negative samples")
 
                 yield queries, items, neg
 
