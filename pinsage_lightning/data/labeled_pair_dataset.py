@@ -15,7 +15,7 @@ class LabeledPairDataset(IterableDataset):
         num_hard_negatives,
         etype,
         etype_rev,
-        hard_negative_distance=1,
+        hard_negative_distance=3,
         num_negative_samples=1e5,
     ):
         self.g = g
@@ -74,7 +74,10 @@ class LabeledPairDataset(IterableDataset):
                         0, self.batch_size, (self.num_hard_negatives,)
                     )
                     if torch.min(hard_neg[indices]) > -1:
+                        print("added negative samples")
                         neg[indices] = hard_neg[indices]
+                    else:
+                        print("couldnt get negative samples")
 
                 yield queries, items, neg
 
