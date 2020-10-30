@@ -106,16 +106,7 @@ class PinSAGEDataModule(pl.LightningDataModule):
             self.dataset.etype_rev,
         )
 
-        neighbor_sampler = NeighborSampler(
-            self.train_g,
-            self.user_ntype,
-            self.item_ntype,
-            cfg.random_walk_length,
-            cfg.random_walk_restart_prob,
-            cfg.num_random_walks,
-            cfg.num_neighbors,
-            cfg.n_layers,
-        )
+        neighbor_sampler = self.create_neighbor_sampler(train=True)
         collator = PinSAGECollator(
             neighbor_sampler,
             self.train_g,
@@ -133,8 +124,36 @@ class PinSAGEDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         cfg = self.cfg
 
-        neighbor_sampler = NeighborSampler(
+        neighbor_sampler = self.create_neighbor_sampler(train=False)
+
+        collator = PinSAGECollator(
+            neighbor_sampler,
             self.g,
+            self.item_ntype,
+            embedding_file=self.embedding_file,
+        )
+        dataloader_test = DataLoader(
+            torch.arange(self.num_item_nodes),
+            batch_size=cfg.batch_size,
+            collate_fn=collator.collate_test,
+            num_workers=cfg.num_workers,
+        )
+        return dataloader_test
+
+    @property
+    def num_item_nodes(self):
+        return self.g.number_of_nodes(self.item_ntype)
+
+    def create_neighbor_sampler(self, train=False):
+        cfg = self.cfg
+
+        if train:
+            g = self.train_g
+        else:
+            g = self.g
+
+        neighbor_sampler = NeighborSampler(
+            g,
             self.user_ntype,
             self.item_ntype,
             cfg.random_walk_length,
@@ -144,16 +163,4 @@ class PinSAGEDataModule(pl.LightningDataModule):
             cfg.n_layers,
         )
 
-        collator = PinSAGECollator(
-            neighbor_sampler,
-            self.g,
-            self.item_ntype,
-            embedding_file=self.embedding_file,
-        )
-        dataloader_test = DataLoader(
-            torch.arange(self.g.number_of_nodes(self.item_ntype)),
-            batch_size=cfg.batch_size,
-            collate_fn=collator.collate_test,
-            num_workers=cfg.num_workers,
-        )
-        return dataloader_test
+        return neighbor_sampler
