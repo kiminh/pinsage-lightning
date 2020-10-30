@@ -1,5 +1,10 @@
+import logging
 from pathlib import Path
+
 import pytorch_lightning as pl
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__file__)
 
 
 def get_project_dir():
@@ -16,9 +21,11 @@ class HardNegativeCallback(pl.Callback):
         self.hard_negative_update_interval = hard_negative_update_interval
 
         self.last_update = 0
+        logger.info("Initialized HardNegativeCallback")
 
     def on_validation_end(self, trainer: pl.Trainer, pl_module):
         if trainer.global_step >= self.last_update + self.hard_negative_update_interval:
             if trainer.train_dataloader.dataset.num_hard_negatives < self.max_num_hard_negatives:
                 trainer.train_dataloader.dataset.num_hard_negatives += 1
+                logger.info(f"Update number of hard negatives to {trainer.train_dataloader.dataset.num_hard_negatives}")
                 self.last_update = trainer.global_step
